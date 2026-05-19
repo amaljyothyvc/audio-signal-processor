@@ -1,0 +1,59 @@
+
+module audio_top (
+    input  logic        clk,
+    input  logic        rst,
+    input  logic        in_valid,
+    input  logic [63:0] in_data,
+    input  logic [3:0]  volume,
+    output logic        out_valid,
+    output logic [63:0] out_data
+);
+
+    logic sample_valid;
+    logic signed [15:0] x_sample, d_sample;
+    logic lms_valid;
+    logic signed [15:0] y_out, e_out, vol_out;
+
+    unpacker u_unpack (
+        .clk(clk), .rst(rst),
+        .in_valid(in_valid),
+        .in_data(in_data),
+        .sample_valid(sample_valid),
+        .x_out(x_sample),
+        .d_out(d_sample)
+    );
+
+    lms_16tap u_lms (
+        .clk(clk), .rst(rst),
+        .in_valid(sample_valid),
+        .x_in(x_sample),
+        .d_in(d_sample),
+        .out_valid(lms_valid),
+        .y_out(y_out)
+    );
+
+    error_block u_err (
+        .clk(clk),
+        .in_valid(lms_valid),
+        .d_in(d_sample),
+        .y_in(y_out),
+        .e_out(e_out)
+    );
+
+    volume_control u_vol (
+        .clk(clk),
+        .in_valid(lms_valid),
+        .sample_in(e_out),
+        .volume(volume),
+        .sample_out(vol_out)
+    );
+
+    packer u_pack (
+        .clk(clk), .rst(rst),
+        .in_valid(lms_valid),
+        .sample_in(vol_out),
+        .out_valid(out_valid),
+        .out_data(out_data)
+    );
+
+endmodule
